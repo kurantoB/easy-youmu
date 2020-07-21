@@ -4,20 +4,22 @@ using Fungus;
 [CommandInfo("Narrative",
                  "MarisaSay",
                  "Marisa's message")]
-public class SayMarisa : Say
+public class MarisaSay : Say
 {
     public MarisaExpression expression;
+    private bool visited;
     public override void OnEnter()
     {
         character = GameObject.FindGameObjectWithTag("MarisaCharacter").GetComponent<Character>();
         portrait = GetCharacterPortrait();
         character.SetSayDialog.CharacterImage.CrossFadeAlpha(1, 0.25f, true);
         float waitTime = storyText.Length > 70 ? 9 : 4.5f;
-        if (GameObject.FindGameObjectWithTag("MessageTimer") != null)
+        if (GameObject.FindObjectOfType<Timer>() != null)
         {
-            Timer tmr = GameObject.FindGameObjectWithTag("MessageTimer").GetComponent<Timer>();
+            Timer tmr = GameObject.FindObjectOfType<Timer>();
             tmr.timerReset(waitTime, Continue);
         }
+        visited = false;
         base.OnEnter();
     }
 
@@ -40,18 +42,8 @@ public class SayMarisa : Say
 
     public override void Continue()
     {
-        if (GameObject.FindObjectOfType<GameFlow>() != null)
-        {
-            GameObject.FindObjectOfType<GameFlow>().HandleContinue(this, BaseContinue);
-        }
-        else
-        {
-            base.Continue();
-        }
-    }
-
-    private void BaseContinue()
-    {
-        base.Continue();
+        if (visited) return;
+        visited = true;
+        GameObject.FindObjectOfType<GameFlow>().HandleContinue(this, base.Continue);
     }
 }

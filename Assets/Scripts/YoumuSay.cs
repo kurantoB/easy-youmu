@@ -7,6 +7,7 @@ using Fungus;
 public class YoumuSay : Say
 {
     public YoumuExpression expression;
+    private bool visited;
     public override void OnEnter()
     {
         character = GameObject.FindGameObjectWithTag("YoumuCharacter").GetComponent<Character>();
@@ -21,11 +22,12 @@ public class YoumuSay : Say
         GetFlowchart().ExecuteBlock("YoumuPortrait");
 
         float waitTime = storyText.Length > 70 ? 9 : 4;
-        if (GameObject.FindGameObjectWithTag("MessageTimer") != null)
+        if (GameObject.FindObjectOfType<Timer>() != null)
         {
-            Timer tmr = GameObject.FindGameObjectWithTag("MessageTimer").GetComponent<Timer>();
+            Timer tmr = GameObject.FindObjectOfType<Timer>();
             tmr.timerReset(waitTime, Continue);
         }
+        visited = false;
         base.OnEnter();
     }
 
@@ -47,18 +49,8 @@ public class YoumuSay : Say
 
     public override void Continue()
     {
-        if (GameObject.FindObjectOfType<GameFlow>() != null)
-        {
-            GameObject.FindObjectOfType<GameFlow>().HandleContinue(this, BaseContinue);
-        }
-        else
-        {
-            base.Continue();
-        }
-    }
-
-    private void BaseContinue()
-    {
-        base.Continue();
+        if (visited) return;
+        visited = true;
+        GameObject.FindObjectOfType<GameFlow>().HandleContinue(this, base.Continue);
     }
 }

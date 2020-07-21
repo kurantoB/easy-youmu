@@ -86,8 +86,9 @@ namespace Fungus
 
             if (writer != null && writer.IsWriting)
             {
-                if (Input.GetButtonDown(currentStandaloneInputModule.submitButton) ||
-                    (cancelEnabled && Input.GetButton(currentStandaloneInputModule.cancelButton)))
+                if (!GameObject.FindObjectOfType<Flowchart>().GetBooleanVariable("Lock") &&
+                    (Input.GetButtonDown(currentStandaloneInputModule.submitButton) ||
+                    (cancelEnabled && Input.GetButton(currentStandaloneInputModule.cancelButton))))
                 {
                     SetNextLineFlag();
                 }

@@ -1,29 +1,28 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
+using UnityEditor;
 
 public class TopicManager : MonoBehaviour
 {
     public static TopicManager instance;
     // Array with all topic GameObjects that can spawn
     // Uhh I was too lazy to prevent spawning of Real talk topics, so I just made a separate array for topics Patchouli can say
-    public List<GameObject> availableTopics;
-    public GameObject[] realTalkTopics;
+    public List<string> availableTopics;
+    private List<int> availableIndices = new List<int>();
+    private Dictionary<string, int> topicToIndex = new Dictionary<string, int>();
+    public GameObject topicPrefab;
 
     public float topicSpawnTime;
+    public int scrollSpeed;
+    public int spawnX;
+    public int spawnY;
+    public float deleteThreshold;
     private float topicTimeLeft;
 
     bool spawningTopics = true;
 
     // Canvas where topic buttons are drawn
     public GameObject parentCanvas;
-
-    private GameObject spawnedTopic;
-
-    public List<string> visitedTopics;
-
-    private List<string> scrollingTopics = new List<string>();
 
     public GameFlow gameFlow;
 
@@ -51,6 +50,19 @@ public class TopicManager : MonoBehaviour
     void Start()
     {
         topicTimeLeft = topicSpawnTime;
+        for (int i = 0; i < availableTopics.Count; i++)
+        {
+            availableIndices.Add(i);
+            topicToIndex.Add(availableTopics[i], i);
+        }
+    }
+
+    public void TopicAvailable(string goToTopic)
+    {
+        if (spawningTopics)
+        {
+            availableIndices.Add(topicToIndex[goToTopic]);
+        }
     }
 
     // Update is called once per frame
@@ -62,45 +74,19 @@ public class TopicManager : MonoBehaviour
             topicTimeLeft -= Time.deltaTime;
             if (topicTimeLeft <= 0)
             {
-                // Instantiate random GameObjects in array, set parent to canvas so it'll render
-                GameObject tentativeTopic;
-                while ((tentativeTopic = availableTopics[UnityEngine.Random.Range(0, availableTopics.Count)]).GetComponent<TopicButton>().goToTopic.Equals(gameFlow.GetFlowchartCurrentBlock())
-                    || scrollingTopics.Contains(tentativeTopic.GetComponent<TopicButton>().goToTopic)) ;
-                spawnedTopic = Instantiate(tentativeTopic, new Vector3(200, 200, 0), Quaternion.identity, parentCanvas.transform);
-                spawnedTopic.SetActive(true);
-                scrollingTopics.Add(spawnedTopic.GetComponent<TopicButton>().goToTopic);
                 // Reset timer
                 topicTimeLeft = topicSpawnTime;
+                if (availableIndices.Count == 0)
+                {
+                    return;
+                }
+                int availableIndicesIndex = Random.Range(0, availableIndices.Count);
+                string spawnTopic = availableTopics[availableIndices[availableIndicesIndex]];
+                GameObject topicButtonInst = Instantiate(topicPrefab, new Vector3(spawnX, spawnY, 0), Quaternion.identity, parentCanvas.transform);
+                topicButtonInst.GetComponent<TopicButton>().Init(scrollSpeed, spawnTopic, deleteThreshold);
+                availableIndices.RemoveAt(availableIndicesIndex);
             }
         }
-    }
-
-    public void RemoveFromScrolling(string topic)
-    {
-        scrollingTopics.Remove(topic);
-    }
-
-    // Keeps track of all topics player has visited
-    public void Visited(string topicName)
-    {
-        visitedTopics.Add(topicName);
-    }
-
-    // Checks if topic has been visited before by comparing topics with list of visited topics
-    public bool IsAlreadyVisited(string topic)
-    {
-        foreach (string topicItem in visitedTopics)
-        {
-            if (topicItem == topic)
-            {
-                // return if topic has been visited
-                Debug.Log(topic + " is an old topic");
-                return true;
-            }
-        }
-        // return if topic has not been visited
-        Debug.Log(topic + " is a new topic");
-        return false;
     }
 
     // Clear the scrolling topic list
@@ -109,9 +95,14 @@ public class TopicManager : MonoBehaviour
         foreach (GameObject topic in GameObject.FindGameObjectsWithTag("TopicButton"))
         {
             Destroy(topic);
+            TopicAvailable(topic.GetComponent<TopicButton>().getGoToTopic());
         }
         spawningTopics = false;
-        scrollingTopics.Clear();
+    }
+
+    public void RegisterTopic(string newTopic)
+    {
+        availableIndices.Remove(topicToIndex[newTopic]);
     }
 
     // Activate the scrolling topic list
@@ -119,29 +110,5 @@ public class TopicManager : MonoBehaviour
     {
         spawningTopics = true;
     }
-
-    public string GetNextTopic()
-    {
-        string nextTopic = availableTopics[UnityEngine.Random.Range(0, 7)].name;
-        bool isOldTopic = true;
-
-        if (IsAlreadyVisited(nextTopic))
-        {
-            Debug.Log(nextTopic + " was picked, old topic");
-            nextTopic = GetNextTopic();
-        }
-        else
-        {
-            if (nextTopic == "Magic Real" || nextTopic == "Becoming a Youkai Real")
-            {
-                Debug.Log(nextTopic + " was picked, but Patchy can't choose it");
-                nextTopic = GetNextTopic();
-            }
-            isOldTopic = false;
-        }
-        // topic initiated by Patchy - can't be already visited, can't be real-talk
-        return nextTopic;
-    }
-
 
 }

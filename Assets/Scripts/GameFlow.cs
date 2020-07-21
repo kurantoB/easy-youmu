@@ -1,98 +1,89 @@
 ﻿using UnityEngine;
 using Fungus;
-using TMPro;
 using UnityEngine.SceneManagement;
+using System.Collections.Generic;
 
 public class GameFlow : MonoBehaviour
 {
     public Flowchart flowChart;
-    public delegate void BaseContinue();
     public GameObject endMenu;
+    public GameObject progressCircle;
+    public List<int> youmuConfessionNums;
+
+    public delegate void BaseContinue();
+
+    private void Awake()
+    {
+        youmuConfessionNums = new List<int>() {0, 1, 2, 3, 4, 5};
+    }
+
+    public void StartFirstTopic()
+    {
+        List<string> topics = TopicManager.instance.availableTopics;
+        int topicIndex = Random.Range(0, topics.Count);
+        ConfessionBackOut(topics[topicIndex]);
+    }
 
     public void ChangeTopic(string topic)
     {
         TopicManager.instance.ClearTopicRoll();
-
         flowChart.SetStringVariable("NextBlock", topic);
-        flowChart.SetBooleanVariable("PatchyInitiated", false);
-        flowChart.SetBooleanVariable("ConfessionZone", false);
     }
 
-    public void HandleContinue(Say sayCommand, BaseContinue bc)
+    public void HandleContinue(Command sayCommand, BaseContinue bc)
     {
         string nextBlock = flowChart.GetStringVariable("NextBlock");
         if (!"Empty".Equals(nextBlock))
         {
-            sayCommand.StopParentBlock();
+            flowChart.StopAllBlocks();
             flowChart.ExecuteBlock(nextBlock);
-            if (TopicManager.instance.IsAlreadyVisited(nextBlock))
+            flowChart.SetStringVariable("NextBlock", "Empty");
+            if (flowChart.GetStringVariable("ConvoStage").Equals("MidConvo"))
             {
-                flowChart.SetIntegerVariable("ChancesLeft", Mathf.Max(0, flowChart.GetIntegerVariable("ChancesLeft") - 1));
-                flowChart.SetStringVariable("CurrentBlock", nextBlock);
-                flowChart.SetStringVariable("NextBlock", "Empty");
-                flowChart.SetStringVariable("BadTransition", "Already Talked About");
-                flowChart.SetBooleanVariable("TopicWinddown", false);
+                flowChart.SetBooleanVariable("BadTransition", true);
             }
-            else if (!flowChart.GetBooleanVariable("TopicWinddown"))
-            {
-                flowChart.SetIntegerVariable("ChancesLeft", Mathf.Max(0, flowChart.GetIntegerVariable("ChancesLeft") - 2));
-                flowChart.SetStringVariable("CurrentBlock", nextBlock);
-                flowChart.SetStringVariable("BadTransition", "Abrupt Topic Change");
-                flowChart.SetStringVariable("NextBlock", "Empty");
-                flowChart.SetBooleanVariable("TopicWinddown", false);
-            }
-            else if (nextBlock.Equals("Youkai Confession") || nextBlock.Equals("Magic Confession") || nextBlock.Equals("Fail Confession"))
-            {
-                flowChart.SetStringVariable("NextBlock", "Empty");
-            }
-            else
+            else if (flowChart.GetStringVariable("ConvoStage").Equals("ConfessionApproach"))
             {
                 // good transition
-                flowChart.SetIntegerVariable("ChancesLeft", Mathf.Max(0, flowChart.GetIntegerVariable("ChancesLeft") - 1));
+                flowChart.SetStringVariable("ConvoStage", "MidConvo");
+                flowChart.SetIntegerVariable("CommandIndex", 0);
                 flowChart.SetStringVariable("CurrentBlock", nextBlock);
-                flowChart.SetStringVariable("NextBlock", "Empty");
-                flowChart.SetBooleanVariable("TopicWinddown", false);
+                TopicManager.instance.RegisterTopic(nextBlock);
+                TopicManager.instance.ClearTopicRoll();
                 TopicManager.instance.ActivateTopicRoll();
             }
         }
         else
         {
-            bc();
+            if (flowChart.GetBooleanVariable("BadTransition"))
+            {
+                flowChart.StopAllBlocks();
+                flowChart.ExecuteBlock("AbruptTopicChange");
+                flowChart.SetBooleanVariable("BadTransition", false);
+            } else {
+                if (!sayCommand.ParentBlock.BlockName.Equals("AbruptTopicChange"))
+                {
+                    // Normal flow
+                    flowChart.SetIntegerVariable("CommandIndex", (sayCommand.CommandIndex + 1));
+                }
+                bc();
+            }
         }
     }
 
-    public void PatchyTopicChange()
+    public void ConfessionBackOut(string newTopic)
     {
-        TopicManager.instance.ClearTopicRoll();
-
-        if (flowChart.GetIntegerVariable("ChancesLeft") == 0)
-        {
-            Debug.Log("PatchyTopicChange: End of Convo");
-            flowChart.FindBlock(flowChart.GetStringVariable("CurrentBlock")).Stop();
-            flowChart.ExecuteBlock("End of Convo");
-            flowChart.SetStringVariable("NextBlock", "Empty");
-            return;
-        }
-
-        string nextBlock = TopicManager.instance.GetNextTopic();
-
-        TopicManager.instance.ActivateTopicRoll();
-
-        Debug.Log("PatchyTopicChange: " + nextBlock);
-        flowChart.SetIntegerVariable("ChancesLeft", Mathf.Max(0, flowChart.GetIntegerVariable("ChancesLeft") - 1));
-        flowChart.SetBooleanVariable("PatchyInitiated", true);
-        flowChart.ExecuteBlock(nextBlock);
-        flowChart.SetStringVariable("CurrentBlock", nextBlock);
+        flowChart.StopAllBlocks();
+        flowChart.ExecuteBlock(newTopic);
+        flowChart.SetStringVariable("ConvoStage", "MidConvo");
+        flowChart.SetIntegerVariable("CommandIndex", 0);
+        TopicManager.instance.RegisterTopic(newTopic);
+        flowChart.SetStringVariable("CurrentBlock", newTopic);
         flowChart.SetStringVariable("NextBlock", "Empty");
-        flowChart.SetBooleanVariable("TopicWinddown", false);
-    }
-
-    public void ReenableTopicRoll()
-    {
-        if (flowChart.GetIntegerVariable("ChancesLeft") >= 1)
-        {
-            TopicManager.instance.ActivateTopicRoll();
-        }
+        TopicManager.instance.ClearTopicRoll();
+        TopicManager.instance.ActivateTopicRoll();
+        GameObject.FindObjectOfType<Timer>().EnableTimer();
+        progressCircle.SetActive(true);
     }
 
     public void DisplayEndMenu()
@@ -111,8 +102,27 @@ public class GameFlow : MonoBehaviour
         Destroy(GameObject.FindGameObjectWithTag("AudioSource"));
     }
 
-    public string GetFlowchartCurrentBlock()
+    public void ReturnToCurrentBlock() {
+        flowChart.ExecuteBlock(flowChart.FindBlock(flowChart.GetStringVariable("CurrentBlock")), flowChart.GetIntegerVariable("CommandIndex"));
+    }
+
+    public void IgnoredConfession()
     {
-        return flowChart.GetStringVariable("CurrentBlock");
+        TopicManager.instance.ActivateTopicRoll();
+        flowChart.SetBooleanVariable("Lock", true);
+    }
+
+    public void YoumuConfessionReached()
+    {
+        GameObject.FindObjectOfType<Timer>().DisableTimer();
+        progressCircle.SetActive(false);
+        TopicManager.instance.ClearTopicRoll();
+    }
+
+    public void SetYoumuConfessionNum()
+    {
+        int youmuConfessionNum = youmuConfessionNums[Random.Range(0, youmuConfessionNums.Count)];
+        flowChart.SetIntegerVariable("YoumuConfessionNum", youmuConfessionNum);
+        youmuConfessionNums.Remove(youmuConfessionNum);
     }
 }

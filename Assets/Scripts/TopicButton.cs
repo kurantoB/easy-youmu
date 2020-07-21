@@ -1,52 +1,57 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.UI;
+﻿using UnityEngine;
+using Fungus;
+using TMPro;
 
 public class TopicButton : MonoBehaviour
 
 {
     // Upon spawning, button will move upwards until it hits a certain height, where it will delete itself
     private RectTransform rectTransform;
-    private float yPos = -95;
-    public int speed;
-    public string goToTopic;
+    private int speed;
+    private string goToTopic;
+    public TMP_Text tmproText;
+    public float deleteThreshold;
     // Start is called before the first frame update
     void Start()
     {
         rectTransform = GetComponent<RectTransform>();
     }
 
+    public void Init(int speed, string goToTopic, float deleteThreshold)
+    {
+        this.speed = speed;
+        this.goToTopic = goToTopic;
+        this.tmproText.text = goToTopic;
+        this.deleteThreshold = deleteThreshold;
+    }
+
     // Update is called once per frame
     void Update()
     {
-        yPos += Time.deltaTime * speed;
-        rectTransform.anchoredPosition = new Vector2(125, yPos);
+        rectTransform.anchoredPosition = new Vector2(transform.position.x, transform.position.y + Time.deltaTime * speed);
 
-        if (yPos >= 70)
+        if (transform.position.y >= deleteThreshold)
         {
-            TopicManager.instance.RemoveFromScrolling(goToTopic);
             Destroy(gameObject);
+            TopicManager.instance.TopicAvailable(goToTopic);
         }
+    }
+
+    public string getGoToTopic()
+    {
+        return goToTopic;
     }
 
     public void topicButtonClicked()
     {
-        /*if (TopicManager.instance.youkaiProgress == 2
-            && goToTopic.Equals("Becoming a Youkai"))
+        TopicManager.instance.ClearTopicRoll();
+        if (GameObject.FindObjectOfType<Flowchart>().GetBooleanVariable("Lock"))
         {
-            GameObject.FindGameObjectWithTag("GameFlow").GetComponent<GameFlow>().ChangeTopic("Becoming a Youkai (Real Talk)");
-        }
-        else if (TopicManager.instance.magicProgress == 2
-          && goToTopic.Equals("Magic"))
+            GameObject.FindObjectOfType<Flowchart>().SetBooleanVariable("Lock", false);
+            GameObject.FindObjectOfType<GameFlow>().ConfessionBackOut(goToTopic);
+        } else
         {
-            GameObject.FindGameObjectWithTag("GameFlow").GetComponent<GameFlow>().ChangeTopic("Magic (Real Talk)");
+            GameObject.FindObjectOfType<Flowchart>().SetStringVariable("NextBlock", goToTopic);
         }
-        else
-        {
-            GameObject.FindGameObjectWithTag("GameFlow").GetComponent<GameFlow>().ChangeTopic(goToTopic);
-        }
-
-        JSAM.AudioManager.PlaySound(JSAM.Sounds.topicchange);*/
     }
 }
