@@ -111,4 +111,9 @@ public class TopicManager : MonoBehaviour
         spawningTopics = true;
     }
 
+    public bool IsLastTopic()
+    {
+        return availableIndices.Count == 0;
+    }
+
 }

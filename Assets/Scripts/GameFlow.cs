@@ -117,6 +117,10 @@ public class GameFlow : MonoBehaviour
         GameObject.FindObjectOfType<Timer>().DisableTimer();
         progressCircle.SetActive(false);
         TopicManager.instance.ClearTopicRoll();
+        if (TopicManager.instance.IsLastTopic())
+        {
+            flowChart.SetBooleanVariable("ReachedEnd", true);
+        }
     }
 
     public void SetYoumuConfessionNum()
