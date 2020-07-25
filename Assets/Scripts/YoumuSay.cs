@@ -51,6 +51,12 @@ public class YoumuSay : Say
     {
         if (visited) return;
         visited = true;
-        GameObject.FindObjectOfType<GameFlow>().HandleContinue(this, base.Continue);
+        if (GameObject.FindObjectOfType<GameFlow>() != null)
+        {
+            GameObject.FindObjectOfType<GameFlow>().HandleContinue(this, base.Continue);
+        } else
+        {
+            base.Continue();
+        }
     }
 }
